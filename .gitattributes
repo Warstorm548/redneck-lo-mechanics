@@ -1,0 +1,3 @@
+# Keep the vCard byte-for-byte intact.
+# Git must not touch its CRLF line endings or the embedded base64 photo.
+*.vcf binary
