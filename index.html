@@ -106,6 +106,8 @@
   .save:focus-visible{outline:3px solid var(--chrome);outline-offset:4px}
 
   .help{font-size:1.02rem;line-height:1.35;color:#b9a3dd;text-align:center;max-width:42ch;margin:-6px auto 0}
+  .help.android{margin-top:8px;color:#d8c8f5}
+  .help b{font-weight:600;color:#fff}
 
   @media (prefers-reduced-motion:reduce){.hot::after{animation:none}}
 </style>
@@ -138,124 +140,20 @@
     Save Contact
   </a>
   <p class="help">Adds James &amp; Misty Combs with both numbers to your phone's contacts.</p>
+  <p class="help android" hidden>On Android the card downloads first. Tap <b>Open</b> on the download, then choose Contacts.</p>
 
 </main>
-<!-- Android fix. Chrome on Android cannot render a .vcf, so tapping the link
-     above downloads the file and the "open with which app?" prompt only shows
-     up once the user digs the download out of the notification shade. This
-     hands the contact straight to Android instead.
-
-     Everything here is gated on an Android user-agent, so iPhone, iPad and
-     desktop never run a line of it: they keep using the plain href, which is
-     what makes Safari open its native Add Contact sheet. With JavaScript off,
-     or if anything below fails, the link also just behaves as it always has.
-
-     There is nothing to keep in sync here. The contact details are read out
-     of contact.vcf at run time, so editing that file is still all it takes to
-     change a number. -->
+<!-- Android note. Chrome on Android cannot display a .vcf, so tapping the
+     link above downloads it, and the "open with" choice only appears once the
+     user taps Open on that download. A web page cannot skip that step: Chrome
+     refuses to hand .vcf files to the share sheet, and the Contacts app's
+     "new contact" screen is not reachable from a browser intent. See the
+     README. So the only job here is to show the hint on Android; iPhone, iPad
+     and desktop never see it and keep using the plain link. -->
 <script>
-(function () {
-  var ua = navigator.userAgent || '';
-  if (!/Android/i.test(ua)) return;
-
-  // intent: URLs are a Chromium feature. Samsung Internet and friends report
-  // "Chrome/" too; Firefox does not, and would only show an error page.
-  var chromium = /Chrome\//.test(ua) && !/Firefox|FxiOS/i.test(ua);
-
-  var link = document.querySelector('a.save');
-  if (!link) return;
-
-  var vcf = null;   // contact.vcf as text, once it has arrived
-  var file = null;  // the same bytes as a File, for navigator.share
-
-  // Fetched up front so the share call below can stay inside the click's user
-  // gesture. If it has not landed by the time someone taps, the link falls
-  // back to its normal behaviour.
-  fetch(link.getAttribute('href'), { cache: 'force-cache' })
-    .then(function (r) { return r.ok ? r.text() : Promise.reject(r.status); })
-    .then(function (text) {
-      vcf = text;
-      try {
-        file = new File([text], 'contact.vcf', { type: 'text/vcard' });
-      } catch (e) { /* older browsers: share path is simply skipped */ }
-    })
-    .catch(function () { /* offline or 404: link behaves as it does today */ });
-
-  // vCard escaping: \, \; \\ and \n are the only sequences this card uses.
-  function unfold(value) {
-    return value.replace(/\\([\\,;nN])/g, function (_, ch) {
-      return (ch === 'n' || ch === 'N') ? '\n' : ch;
-    });
+  if (/Android/i.test(navigator.userAgent || '')) {
+    document.querySelector('.help.android').hidden = false;
   }
-
-  // Build an "add a contact" intent from whatever contact.vcf actually says.
-  function intentUrl() {
-    if (!vcf) return null;
-
-    // Unfold continuation lines (the embedded photo is folded), then read the
-    // handful of properties the Contacts app can prefill. Property names can
-    // carry an "item1." group prefix and parameters before the colon.
-    var lines = vcf.replace(/\r\n[ \t]/g, '').split(/\r\n|\n|\r/);
-    var raw = {}, tels = [];
-
-    for (var i = 0; i < lines.length; i++) {
-      var m = /^(?:item\d+\.)?(TEL|FN|ORG|TITLE|NOTE)(?:;[^:]*)?:(.*)$/i.exec(lines[i]);
-      if (!m) continue;
-      var key = m[1].toUpperCase();
-      if (key === 'TEL') tels.push(m[2]);
-      else if (!(key in raw)) raw[key] = m[2];
-    }
-    if (!tels.length && !raw.FN) return null;
-
-    // ORG is semicolon-separated (company;department) - keep the company.
-    var extras = {
-      name:            raw.FN   ? unfold(raw.FN) : '',
-      phone:           tels[0]  ? unfold(tels[0]) : '',
-      secondary_phone: tels[1]  ? unfold(tels[1]) : '',
-      company:         raw.ORG  ? unfold(raw.ORG.split(';')[0]) : '',
-      job_title:       raw.TITLE ? unfold(raw.TITLE) : '',
-      notes:           raw.NOTE ? unfold(raw.NOTE) : ''
-    };
-
-    var url = 'intent:#Intent;action=android.intent.action.INSERT' +
-              ';type=vnd.android.cursor.dir/contact';
-    for (var field in extras) {
-      if (extras[field]) {
-        url += ';S.' + field + '=' + encodeURIComponent(extras[field]);
-      }
-    }
-    // If no app on the device handles the intent, Chrome loads this instead,
-    // which is exactly the download we get today.
-    return url + ';S.browser_fallback_url=' + encodeURIComponent(link.href) + ';end';
-  }
-
-  function openIntent() {
-    var url = chromium ? intentUrl() : null;
-    if (!url) return false;
-    window.location.href = url;
-    return true;
-  }
-
-  link.addEventListener('click', function (ev) {
-    // Best case: hand the real vCard, embedded photo and all, to the Android
-    // share sheet, where Contacts is one of the targets. Chrome keeps .vcf off
-    // its share allow-list today, so this usually declines and we fall through.
-    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-      ev.preventDefault();
-      navigator.share({ files: [file] })["catch"](function (err) {
-        if (err && err.name === 'AbortError') return;  // user backed out
-        if (!openIntent()) window.location.href = link.href;
-      });
-      return;
-    }
-
-    // Otherwise open the Contacts app's new-contact screen with the fields
-    // already filled in. No photo, but no download and no notification shade.
-    if (openIntent()) ev.preventDefault();
-
-    // Neither available: let the plain link do what it does today.
-  });
-})();
 </script>
 </body>
 </html>
