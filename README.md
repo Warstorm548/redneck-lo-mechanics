@@ -17,13 +17,44 @@ the contact.
 | `.nojekyll` | Tells GitHub Pages to serve the files as-is instead of running Jekyll. |
 | `LICENSE` | AGPL-3.0. |
 
-Two details are deliberate and should not be "fixed":
+Three details are deliberate and should not be "fixed":
 
 - The **Save Contact** link has **no `download` attribute**. Without it, iPhone
   Safari opens the native *Add Contact* sheet. With it, Safari saves the file
   to Files instead, which is worse.
 - `contact.vcf` uses **CRLF** line endings, per the vCard spec. LF-only files
   are rejected or mangled by some phones.
+- The **script at the bottom of `index.html` is Android-only** and is what stops
+  Android from downloading the vCard instead of offering to add the contact.
+  See *Save Contact on Android* below before touching it.
+
+## Save Contact on Android
+
+Chrome on Android cannot display a `.vcf`, so a plain link to one downloads the
+file and the "open with which app?" prompt appears only once the user finds the
+download in the notification shade. The script at the bottom of `index.html`
+works around that. It runs **only** when the user agent says Android, so iPhone,
+iPad and desktop are untouched and keep using the plain link.
+
+On Android it tries, in order:
+
+1. **The Android share sheet**, handed the real `contact.vcf` so the embedded
+   photo survives. Chrome currently keeps `.vcf` off its Web Share allow-list,
+   so `navigator.canShare()` usually declines and this step is skipped. It is
+   kept because it is the only path that preserves the photo, and because other
+   Android browsers may allow it.
+2. **An `intent:` URL**, which opens the Contacts app's new-contact screen with
+   the name, both numbers, company, title and note already filled in. This is
+   the step that normally runs. It loses the photo, but there is no download and
+   no notification shade. Chromium-based browsers only; Firefox for Android is
+   skipped because it would just show an error.
+3. **The plain link**, i.e. exactly today's behaviour, if neither is available,
+   if the prefetch has not finished, or if JavaScript is off. The `intent:` URL
+   also carries a `browser_fallback_url` pointing back at `contact.vcf`, so a
+   device with no Contacts app lands here too.
+
+The contact details for step 2 are **parsed out of `contact.vcf` at run time**,
+not hardcoded. Editing that file is still all it takes to change a number.
 
 ## Changing a phone number
 
