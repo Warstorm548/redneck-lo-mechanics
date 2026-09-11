@@ -11,7 +11,7 @@ the contact.
 
 | File | Purpose |
 | --- | --- |
-| `index.html` | The whole page. Self-contained: the card artwork is embedded as a base64 JPEG, with invisible tappable `tel:` links positioned over the printed phone numbers, two call buttons, and a **Save Contact** button. |
+| `index.html` | The whole page. Self-contained: the card artwork is embedded as a base64 JPEG, with invisible tappable `tel:` links positioned over the printed phone numbers, two call buttons, a **Save Contact** button, and a one-line hint shown only on Android. |
 | `contact.vcf` | vCard 3.0 with an embedded photo. CRLF line endings, which iOS requires. |
 | `.gitattributes` | Marks `*.vcf` as binary so Git never rewrites those CRLF endings. |
 | `.nojekyll` | Tells GitHub Pages to serve the files as-is instead of running Jekyll. |
@@ -24,37 +24,45 @@ Three details are deliberate and should not be "fixed":
   to Files instead, which is worse.
 - `contact.vcf` uses **CRLF** line endings, per the vCard spec. LF-only files
   are rejected or mangled by some phones.
-- The **script at the bottom of `index.html` is Android-only** and is what stops
-  Android from downloading the vCard instead of offering to add the contact.
-  See *Save Contact on Android* below before touching it.
+- The **tiny script at the bottom of `index.html`** only reveals the Android
+  hint under the button. It does not, and cannot, stop Android from downloading
+  the vCard. See *Save Contact on Android* below before "improving" it.
 
-## Save Contact on Android
+## Save Contact on iPhone and Android
 
-Chrome on Android cannot display a `.vcf`, so a plain link to one downloads the
-file and the "open with which app?" prompt appears only once the user finds the
-download in the notification shade. The script at the bottom of `index.html`
-works around that. It runs **only** when the user agent says Android, so iPhone,
-iPad and desktop are untouched and keep using the plain link.
+The same link behaves differently on the two platforms, and both behaviours are
+the best each platform allows.
 
-On Android it tries, in order:
+**iPhone and iPad (Safari).** Tapping **Save Contact** opens the vCard directly
+in the native contact sheet: name, both numbers, company, title, note and photo
+are shown, with **Create New Contact** and **Add to Existing Contact** buttons.
+Nothing is downloaded. This depends on the link having no `download` attribute
+and on `contact.vcf` keeping its CRLF line endings. Chrome, Firefox and Edge on
+iOS are all Safari underneath and do the same. Opened from the NFC tag, iOS
+shows a banner first; tapping it lands on this page in Safari.
 
-1. **The Android share sheet**, handed the real `contact.vcf` so the embedded
-   photo survives. Chrome currently keeps `.vcf` off its Web Share allow-list,
-   so `navigator.canShare()` usually declines and this step is skipped. It is
-   kept because it is the only path that preserves the photo, and because other
-   Android browsers may allow it.
-2. **An `intent:` URL**, which opens the Contacts app's new-contact screen with
-   the name, both numbers, company, title and note already filled in. This is
-   the step that normally runs. It loses the photo, but there is no download and
-   no notification shade. Chromium-based browsers only; Firefox for Android is
-   skipped because it would just show an error.
-3. **The plain link**, i.e. exactly today's behaviour, if neither is available,
-   if the prefetch has not finished, or if JavaScript is off. The `intent:` URL
-   also carries a `browser_fallback_url` pointing back at `contact.vcf`, so a
-   device with no Contacts app lands here too.
+**Android (Chrome, Samsung Internet, etc.).** Chrome cannot display a `.vcf`, so
+tapping **Save Contact** downloads the file. The phone then shows a download
+notice; tapping **Open** on it brings up the "open with" chooser (or goes
+straight to Contacts if it is the only handler), and Contacts offers to import
+the card, photo included. The page shows a hint under the button on Android
+explaining those two taps.
 
-The contact details for step 2 are **parsed out of `contact.vcf` at run time**,
-not hardcoded. Editing that file is still all it takes to change a number.
+That download step cannot be skipped from a web page. Two workarounds were
+tried and removed because neither can work on a stock phone:
+
+- **The Web Share API with the `.vcf` file.** Chrome keeps a fixed allow-list of
+  shareable file types (images, audio, video, PDF, CSV, HTML, plain text).
+  `.vcf` / `text/vcard` is not on it, so `navigator.canShare()` says no.
+- **An `intent:` URL to the Contacts app's "new contact" screen.** Chrome adds
+  the `BROWSABLE` category to every intent a web page fires, and the Contacts
+  app's insert activity does not declare it, so the intent never resolves and
+  Chrome falls back to the plain link, i.e. the same download.
+
+The one route that skips the browser entirely on Android is writing a vCard
+record to the NFC tag itself, which Android's Contacts app opens directly.
+That breaks iPhone tap-to-open (iOS only auto-opens URL records) and the
+17 KB card with its photo does not fit on common tags, so it is not done here.
 
 ## Changing a phone number
 
