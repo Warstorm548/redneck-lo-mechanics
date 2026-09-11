@@ -106,7 +106,7 @@
   .save:focus-visible{outline:3px solid var(--chrome);outline-offset:4px}
 
   .help{font-size:1.02rem;line-height:1.35;color:#b9a3dd;text-align:center;max-width:42ch;margin:-6px auto 0}
-  .help.android{margin-top:8px;color:#d8c8f5}
+  .help.android,.help.firefox{margin-top:8px;color:#d8c8f5}
   .help b{font-weight:600;color:#fff}
 
   @media (prefers-reduced-motion:reduce){.hot::after{animation:none}}
@@ -132,6 +132,7 @@
       <span class="txt"><span class="lbl">2nd Phone</span><span class="num">(231) 383-5325</span></span>
     </a>
   </div>
+  <p class="help firefox" hidden>Firefox asks before placing a call: tap <b>Open</b>. If you picked the other choice, Firefox ignores these numbers in this tab for an hour. Open the page in a new tab to call.</p>
 
   <!-- No "download" attribute on purpose: iPhone Safari then opens the
        native "Create New Contact" sheet instead of saving to Files. -->
@@ -143,17 +144,27 @@
   <p class="help android" hidden>On Android the card downloads first. Tap <b>Open</b> on the download, then choose Contacts.</p>
 
 </main>
-<!-- Android note. Chrome on Android cannot display a .vcf, so tapping the
-     link above downloads it, and the "open with" choice only appears once the
+<!-- Android notes. Chrome on Android cannot display a .vcf, so tapping Save
+     Contact downloads it, and the "open with" choice only appears once the
      user taps Open on that download. A web page cannot skip that step: Chrome
      refuses to hand .vcf files to the share sheet, and the Contacts app's
-     "new contact" screen is not reachable from a browser intent. See the
-     README. So the only job here is to show the hint on Android; iPhone, iPad
-     and desktop never see it and keep using the plain link. -->
+     "new contact" screen is not reachable from a browser intent.
+
+     Firefox on Android asks "open in app?" before it dials a tel: link. If the
+     user declines, Firefox remembers that per tab for an hour, keyed on the
+     tel: scheme, so every number on the page goes dead in that tab until it is
+     reopened in a new tab. Nothing in the page can reset that; it is Firefox's
+     own do-not-ask cache. See the README for both.
+
+     So the only job here is to reveal the matching hint. iPhone, iPad and
+     desktop never see either and keep using the plain links. -->
 <script>
-  if (/Android/i.test(navigator.userAgent || '')) {
+  (function () {
+    var ua = navigator.userAgent || '';
+    if (!/Android/i.test(ua)) return;
     document.querySelector('.help.android').hidden = false;
-  }
+    if (/Firefox\//.test(ua)) document.querySelector('.help.firefox').hidden = false;
+  })();
 </script>
 </body>
 </html>

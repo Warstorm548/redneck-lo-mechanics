@@ -59,6 +59,19 @@ tried and removed because neither can work on a stock phone:
   app's insert activity does not declare it, so the intent never resolves and
   Chrome falls back to the plain link, i.e. the same download.
 
+**Calling from Firefox on Android.** Firefox asks "open in app?" before it
+hands a `tel:` link to the dialer. If the visitor declines, Firefox stores that
+answer for **one hour, per tab, keyed on the `tel:` scheme**, and then silently
+ignores every phone link on the page in that tab. Reloading does not clear it;
+opening the page in a new tab does. This is Firefox's own do-not-ask cache
+(`AppLinksInterceptor.addUserDoNotIntercept` in the Firefox for Android
+source), not a bug in the page, and nothing the page does can reset it. Varying
+the link does not help because the number is not part of the key. Opening each
+call in a new tab would dodge the cache but leaves an empty tab behind on every
+call, so it is not done. The page instead shows a one-line hint under the call
+buttons on Firefox for Android only. Chrome and Samsung Internet dial without
+asking and are unaffected.
+
 The one route that skips the browser entirely on Android is writing a vCard
 record to the NFC tag itself, which Android's Contacts app opens directly.
 That breaks iPhone tap-to-open (iOS only auto-opens URL records) and the
