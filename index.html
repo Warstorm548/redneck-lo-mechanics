@@ -161,8 +161,13 @@
 <script>
   (function () {
     var ua = navigator.userAgent || '';
-    if (!/Android/i.test(ua)) return;
+    // "Desktop site" mode on Android drops the Android token and reports a
+    // generic Linux UA, so also accept a touch-capable Linux browser.
+    var touch = (navigator.maxTouchPoints || 0) > 0;
+    var android = /Android/i.test(ua) || (/Linux/.test(ua) && !/CrOS/.test(ua) && touch);
+    if (!android) return;
     document.querySelector('.help.android').hidden = false;
+    // Gecko Firefox only. Firefox on iPhone says "FxiOS" and never matches.
     if (/Firefox\//.test(ua)) document.querySelector('.help.firefox').hidden = false;
   })();
 </script>

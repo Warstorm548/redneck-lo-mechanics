@@ -70,7 +70,9 @@ the link does not help because the number is not part of the key. Opening each
 call in a new tab would dodge the cache but leaves an empty tab behind on every
 call, so it is not done. The page instead shows a one-line hint under the call
 buttons on Firefox for Android only. Chrome and Samsung Internet dial without
-asking and are unaffected.
+asking and are unaffected. Both hints key off the browser's user agent, and
+"Desktop site" mode replaces the Android token with a generic Linux one, so
+the page also treats a touch-capable Linux browser as Android.
 
 The one route that skips the browser entirely on Android is writing a vCard
 record to the NFC tag itself, which Android's Contacts app opens directly.
