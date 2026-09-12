@@ -5,7 +5,7 @@ It is the landing page written to the shop's NFC business card tags: tap the
 tag, the phone opens this page, and the visitor can call either number or save
 the contact.
 
-**Live URL:** https://warstorm548.github.io/redneck-lo-mechanics/
+**Live URL:** https://redneck-lo-mechanics.github.io/redneck-lo-mechanics/
 
 ## What's in the repo
 
